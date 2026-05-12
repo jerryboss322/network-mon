@@ -1,0 +1,8 @@
+# Hybrid Network Monitoring Agent — Python Dependencies
+# Install with:  pip install -r requirements.txt
+
+streamlit>=1.32.0
+plotly>=5.18.0
+pandas>=2.0.0
+pysnmp>=4.4.12       # SNMP v1/v2c/v3 support
+icmplib>=3.0.3       # Optional: cross-platform ICMP (falls back to ping cmd)
