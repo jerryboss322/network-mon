@@ -13,16 +13,18 @@ import plotly.graph_objects as go
 from config import DB_PATH, MAX_CHART_POINTS, DASHBOARD_REFRESH_SECS, HOSTS
 import icmp_monitor
 import snmp_monitor
+import database   # ← Important
 
 # Page config
 st.set_page_config(page_title="Hybrid Network Monitor", page_icon="📡", layout="wide")
 
-# Start monitoring threads
+# Initialize database + start threads
 if "monitoring_started" not in st.session_state:
+    database.init_db()                    # ← This was missing!
     icmp_monitor.start()
     snmp_monitor.start()
     st.session_state.monitoring_started = True
-    st.success("✅ Monitoring threads started successfully!")
+    st.success("✅ Monitoring threads & database started!")
 
 # Database helpers
 def load_table(query):
@@ -31,26 +33,31 @@ def load_table(query):
         df = pd.read_sql_query(query, conn)
         conn.close()
         return df
-    except Exception:
+    except Exception as e:
+        st.error(f"DB Error: {e}")
         return pd.DataFrame()
 
 def get_snmp():
-    return load_table(f"SELECT * FROM snmp_metrics ORDER BY timestamp DESC LIMIT {MAX_CHART_POINTS * len(HOSTS)}")
+    return load_table(f"""
+        SELECT * FROM snmp_metrics 
+        ORDER BY timestamp DESC 
+        LIMIT {MAX_CHART_POINTS * len(HOSTS)}
+    """)
 
 def get_icmp():
-    return load_table(f"SELECT * FROM icmp_metrics ORDER BY timestamp DESC LIMIT {MAX_CHART_POINTS * len(HOSTS)}")
+    return load_table(f"""
+        SELECT * FROM icmp_metrics 
+        ORDER BY timestamp DESC 
+        LIMIT {MAX_CHART_POINTS * len(HOSTS)}
+    """)
 
 def get_alerts():
     return load_table("SELECT * FROM alerts ORDER BY timestamp DESC LIMIT 100")
 
-# Helpers
-def severity_colour(sev):
-    return {"CRITICAL": "🔴", "WARNING": "🟡"}.get(sev, "🟢")
-
+# UI Helpers
 def status_badge(status):
     return {"Up": "🟢 Up", "Degraded": "🟡 Degraded", "Down": "🔴 Down"}.get(status, "⚪ Unknown")
 
-# Main UI
 st.title("📡 Hybrid Network Monitoring Agent")
 st.caption(f"Real-time monitoring using SNMP + ICMP | Auto-refreshes every {DASHBOARD_REFRESH_SECS} seconds")
 
@@ -69,7 +76,7 @@ while True:
     with placeholder.container():
         tab1, tab2, tab3, tab4 = st.tabs(["🏠 Overview", "📊 SNMP Metrics", "🌐 ICMP Metrics", "🚨 Alerts"])
 
-        # === OVERVIEW ===
+        # Overview
         with tab1:
             st.subheader("Host Status Summary")
             cols = st.columns(len(HOSTS))
@@ -77,7 +84,7 @@ while True:
                 ip = host["ip"]
                 label = host["label"]
 
-                # ICMP
+                # Get latest ICMP
                 if not icmp_df.empty:
                     row = icmp_df[icmp_df["host_ip"] == ip].tail(1)
                     if not row.empty:
@@ -89,7 +96,6 @@ while True:
                 else:
                     status, rtt, loss = "Waiting…", None, None
 
-                # SNMP
                 cpu = mem = None
                 if not snmp_df.empty and host.get("snmp"):
                     srow = snmp_df[snmp_df["host_ip"] == ip].tail(1)
@@ -105,70 +111,42 @@ while True:
                     if cpu is not None: st.metric("CPU", f"{cpu:.1f}%")
                     if mem is not None: st.metric("Memory", f"{mem:.1f}%")
 
-            st.divider()
-            if not alert_df.empty:
-                active = alert_df[alert_df["resolved"] == 0]
-                crit = len(active[active["severity"] == "CRITICAL"])
-                warn = len(active[active["severity"] == "WARNING"])
-                if crit > 0:
-                    st.error(f"🔴 {crit} CRITICAL alert(s)")
-                elif warn > 0:
-                    st.warning(f"🟡 {warn} WARNING alert(s)")
-                else:
-                    st.success("✅ All systems normal")
-            else:
-                st.info("Monitoring is starting up...")
-
-        # === SNMP TAB ===
+        # SNMP Tab
         with tab2:
             st.subheader("SNMP Device Performance Metrics")
             if snmp_df.empty:
-                st.info("Waiting for SNMP data… (first poll in ~60 seconds)")
+                st.info("⏳ Waiting for SNMP data… (first poll in ~60 seconds)")
             else:
-                snmp_hosts = snmp_df["host_ip"].unique()
+                # CPU Chart
+                fig_cpu = px.line(snmp_df, x="timestamp", y="cpu_pct", color="host_ip", title="CPU Utilization (%)")
+                fig_cpu.add_hline(y=90, line_dash="dash", line_color="red")
+                st.plotly_chart(fig_cpu, use_container_width=True)
 
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    st.markdown("#### CPU Utilization (%)")
-                    fig = px.line(snmp_df, x="timestamp", y="cpu_pct", color="host_ip")
-                    fig.add_hline(y=90, line_dash="dash", line_color="red", annotation_text="Critical")
-                    fig.add_hline(y=70, line_dash="dot", line_color="orange", annotation_text="Warning")
-                    st.plotly_chart(fig, use_container_width=True)
+                # Memory Chart
+                fig_mem = px.line(snmp_df, x="timestamp", y="mem_pct", color="host_ip", title="Memory Utilization (%)")
+                fig_mem.add_hline(y=90, line_dash="dash", line_color="red")
+                st.plotly_chart(fig_mem, use_container_width=True)
 
-                with col_b:
-                    st.markdown("#### Memory Utilization (%)")
-                    fig2 = px.line(snmp_df, x="timestamp", y="mem_pct", color="host_ip")
-                    fig2.add_hline(y=90, line_dash="dash", line_color="red")
-                    fig2.add_hline(y=75, line_dash="dot", line_color="orange")
-                    st.plotly_chart(fig2, use_container_width=True)
-
-                # More charts...
-                st.info("✅ SNMP simulation is running — charts will populate shortly")
-
-        # === ICMP TAB ===
+        # ICMP Tab
         with tab3:
             st.subheader("ICMP Availability & Latency Metrics")
             if icmp_df.empty:
-                st.info("Waiting for ICMP data… (first probe soon)")
+                st.info("⏳ Waiting for ICMP data… (first probe soon)")
             else:
-                col_e, col_f = st.columns(2)
-                with col_e:
-                    st.markdown("#### Round Trip Time (ms)")
-                    fig5 = px.line(icmp_df, x="timestamp", y="avg_rtt_ms", color="host_ip")
-                    st.plotly_chart(fig5, use_container_width=True)
-                with col_f:
-                    st.markdown("#### Packet Loss (%)")
-                    fig6 = px.line(icmp_df, x="timestamp", y="packet_loss_pct", color="host_ip")
-                    st.plotly_chart(fig6, use_container_width=True)
+                col1, col2 = st.columns(2)
+                with col1:
+                    fig_rtt = px.line(icmp_df, x="timestamp", y="avg_rtt_ms", color="host_ip", title="Round Trip Time (ms)")
+                    st.plotly_chart(fig_rtt, use_container_width=True)
+                with col2:
+                    fig_loss = px.line(icmp_df, x="timestamp", y="packet_loss_pct", color="host_ip", title="Packet Loss (%)")
+                    st.plotly_chart(fig_loss, use_container_width=True)
 
-                st.success("✅ Live ICMP data is being collected!")
-
-        # === ALERTS TAB ===
+        # Alerts Tab
         with tab4:
             st.subheader("Alert Log")
             if alert_df.empty:
-                st.success("No alerts yet")
+                st.success("✅ No alerts yet")
             else:
-                st.dataframe(alert_df.head(30), use_container_width=True)
+                st.dataframe(alert_df[["timestamp", "host_ip", "alert_type", "severity", "message"]].head(30), use_container_width=True)
 
     time.sleep(DASHBOARD_REFRESH_SECS)
