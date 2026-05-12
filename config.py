@@ -66,3 +66,6 @@ MAX_CHART_POINTS       = 200  # How many data points to show on each chart
 # When SIMULATE = True the SNMP module generates realistic fake data instead
 # of querying real devices.  Set to False when targeting real SNMP agents.
 SIMULATE = True
+
+# ── Database path ──────────────────────────────────────────────────────────
+DB_PATH = "network_monitor.db"
