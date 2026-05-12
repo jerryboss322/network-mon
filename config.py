@@ -69,3 +69,10 @@ SIMULATE = True
 
 # ── Database path ──────────────────────────────────────────────────────────
 DB_PATH = "network_monitor.db"
+
+# ── Database path ────────────────────────────────────────────────────────────
+DB_PATH = "network_monitor.db"
+EOFcat >> config.py << 'EOF'
+
+# ── Database path ────────────────────────────────────────────────────────────
+DB_PATH = "network_monitor.db"
