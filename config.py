@@ -16,7 +16,7 @@ HOSTS = [
     # --- SNMP-enabled host (your router) ---
     # Uncomment and set to your real router IP once SNMP is enabled on it.
      {
-        "ip": "192.168.10.1",
+        "ip": "192.168.20.1",
          "label": "Home Router",
          "snmp": True,
          "community": "public",   # match whatever you set in the router admin
