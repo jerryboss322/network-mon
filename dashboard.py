@@ -15,12 +15,18 @@ import plotly.graph_objects as go
 
 from config import DB_PATH, MAX_CHART_POINTS, DASHBOARD_REFRESH_SECS, HOSTS
 import database
+import icmp_monitor
+import snmp_monitor
 
-# Ensure the SQLite tables exist before any query runs.
-# This is safe to call multiple times — it uses CREATE TABLE IF NOT EXISTS.
-# Without this, load_table() silently returns empty DataFrames when
-# main.py hasn't been started yet, causing the dashboard to show all "Unknown".
-database.init_db()
+# ── Start monitoring threads (Streamlit Cloud compatible) ─────────────────────
+# On Streamlit Cloud there is no separate terminal to run main.py, so we start
+# the monitoring threads here instead. st.session_state ensures they only launch
+# once per session, not on every rerun of the dashboard script.
+if "monitoring_started" not in st.session_state:
+    database.init_db()
+    icmp_monitor.start()
+    snmp_monitor.start()
+    st.session_state.monitoring_started = True
 
 # ── Page configuration ────────────────────────────────────────────────────────
 st.set_page_config(
@@ -97,16 +103,6 @@ while True:
         icmp_df = icmp_df.iloc[::-1].reset_index(drop=True)
 
     with placeholder.container():
-
-        # ── STARTUP WARNING — shown until main.py writes its first probe ──────
-        # If both icmp_df and snmp_df are empty after the first refresh it almost
-        # always means main.py is not running in the background.
-        if icmp_df.empty and snmp_df.empty:
-            st.warning(
-                "⚠️ No monitoring data yet. "
-                "Make sure **main.py** is running in a separate terminal:  "
-                "`python main.py`  — then wait up to 30 seconds for the first probe."
-            )
 
         # ── TAB NAVIGATION ────────────────────────────────────────────────────
         tab1, tab2, tab3, tab4 = st.tabs([
