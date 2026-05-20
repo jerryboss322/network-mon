@@ -18,7 +18,7 @@ HOSTS = [
      {
         "ip": "192.168.20.1",
          "label": "Home Router",
-         "snmp": True,
+         "snmp": False,
          "community": "public",   # match whatever you set in the router admin
          "snmp_port": 161,
      },
