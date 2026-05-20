@@ -5,16 +5,18 @@ config.py — Central configuration for the Hybrid Network Monitoring Agent
 # ── Hosts to monitor ──────────────────────────────────────────────────────────
 HOSTS = [
     {
-        "ip": "127.0.0.1",
-        "label": "Localhost / Router-Sim",
+        "ip": "192.168.1.1",        # your router's IP
+        "label": "Home Router",
         "snmp": True,
-        "community": "public",
+        "community": "public",      # whatever community string you set
         "snmp_port": 161,
     },
     {
         "ip": "8.8.8.8",
-        "label": "Google DNS (ICMP only)",
+        "label": "Google DNS",
         "snmp": False,
+        "community": "public",
+        "snmp_port": 161,
     },
     {
         "ip": "1.1.1.1",
@@ -43,7 +45,7 @@ DASHBOARD_REFRESH_SECS = 30
 MAX_CHART_POINTS       = 200
 
 # ── Simulation mode ──────────────────────────────────────────────────────────
-SIMULATE = True
+SIMULATE = False
 
 # ── Database path ────────────────────────────────────────────────────────────
 DB_PATH = "network_monitor.db"
