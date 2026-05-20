@@ -15,13 +15,13 @@ HOW TO GO REAL:
 HOSTS = [
     # --- SNMP-enabled host (your router) ---
     # Uncomment and set to your real router IP once SNMP is enabled on it.
-    # {
-    #     "ip": "192.168.1.1",
-    #     "label": "Home Router",
-    #     "snmp": True,
-    #     "community": "public",   # match whatever you set in the router admin
-    #     "snmp_port": 161,
-    # },
+     {
+        "ip": "192.168.1.1",
+         "label": "Home Router",
+         "snmp": True,
+         "community": "public",   # match whatever you set in the router admin
+         "snmp_port": 161,
+     },
 
     # --- ICMP-only hosts (no SNMP needed) ---
     # These work immediately — no device configuration required.
@@ -29,11 +29,15 @@ HOSTS = [
         "ip": "8.8.8.8",
         "label": "Google DNS",
         "snmp": False,
+      "community": "public",      # whatever community string you set
+        "snmp_port": 161,
     },
     {
         "ip": "1.1.1.1",
         "label": "Cloudflare DNS",
         "snmp": False,
+      "community": "public",      # whatever community string you set
+        "snmp_port": 161,
     },
     # Add any device on your local network here (phone, PC, printer, etc.)
     # Find device IPs with:  arp -a  (Windows) or  arp-scan -l  (Linux)
