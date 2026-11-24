@@ -1,0 +1,22 @@
+# Exclude local-only / non-Vercel directories from serverless deployment
+agent/
+tests/
+docs/
+scripts/
+.git/
+.github/
+.pytest_cache/
+.venv/
+venv/
+__pycache__/
+*.db
+*.sqlite3
+*.log
+frontend/node_modules/
+frontend/src/
+dashboard.py
+main.py
+icmp_monitor.py
+snmp_monitor.py
+database.py
+config.py
